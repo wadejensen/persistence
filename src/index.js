@@ -6,12 +6,57 @@ const redis = require("async-redis");
 const AWS = require('aws-sdk');
 const nodeCleanup = require('node-cleanup');
 
-const {promisify} = require('util');
+const redisClient = redis.createClient();
+redisClient.on('error', (err) => {
+    console.log("Error " + err);
+    process.exit(1);
+});
 
+const s3Client = new AWS.S3({apiVersion: '2006-03-01'});
 const bucketName = 'wjensen-wikipedia-store';
-// Create a promise on S3 service object
-const bucketPromise = new AWS.S3({apiVersion: '2006-03-01'})
-    .createBucket({
+createBucket(s3Client, bucketName);
+
+const app = express();
+app.use(responseTime());
+
+app.get('/api/search', async (req, res) => {
+    const query = (req.query.query).trim();
+
+    const redisKey = `wikipedia:${query}`;
+    const s3Key = `wikipedia-${query}`;
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=parse&format=json&section=0&page=${query}`;
+
+    let result;
+    let source;
+
+    if (!result) {
+        source = "Redis cache";
+        result = await getFromRedis(redisClient, redisKey);
+        console.log(result);
+    }
+    if (!result) {
+        source = "S3 cache";
+        result = await getFromS3(s3Client, bucketName, s3Key);
+    }
+    if (!result) {
+        source = "Wikipedia";
+        result = await getFromWikipedia(searchUrl);
+        // cache for future lookups
+        if (result) {
+            writeToRedis(redisClient, redisKey, result);
+            writeToS3(s3Client, bucketName, s3Key, result);
+        }
+    }
+    if (result) {
+        res.status(200).json(result);
+        console.log(`Successfully served Wikipedia query: ${query} from ${source}`)
+    } else {
+        res.status(500).send(`Could not retrieve query: ${query} from Wikipedia.`)
+    }
+});
+
+function createBucket(s3Client, bucketName) {
+    return s3Client.createBucket({
         Bucket: bucketName,
         CreateBucketConfiguration: {
             LocationConstraint: "ap-southeast-2"
@@ -34,68 +79,9 @@ const bucketPromise = new AWS.S3({apiVersion: '2006-03-01'})
             process.exit(1);
         }
     });
-
-const app = express();
-
-const redisClient = redis.createClient();
-redisClient.on('error', (err) => {
-    console.log("Error " + err);
-    process.exit(1);
-});
-
-const s3Client = new AWS.S3({apiVersion: '2006-03-01'});
-
-app.use(responseTime());
-
-app.get('/api/search', async (req, res) => {
-    const query = (req.query.query).trim();
-
-    const redisKey = `wikipedia:${query}`;
-    const s3Key = `wikipedia-${query}`;
-    const searchUrl = `https://en.wikipedia.org/w/api.php?action=parse&format=json&section=0&page=${query}`;
-
-    let result;
-    let source;
-
-    console.log(!result);
-    console.log(1);
-    if (!result) {
-        console.log(2);
-        source = "Redis cache";
-        result = await getFromRedis(redisClient, redisKey);
-        console.log(result);
-    }
-    console.log(6);
-    if (!result) {
-        console.log(7);
-        source = "S3 cache";
-        result = await getFromS3(s3Client, bucketName, s3Key);
-        console.log(8);
-    }
-    if (!result) {
-        console.log(9);
-        source = "Wikipedia";
-        result = await getFromWikipedia(searchUrl);
-        // cache for future lookups
-        if (result) {
-            console.log(10);
-            writeToRedis(redisClient, redisKey, result);
-            writeToS3(s3Client, bucketName, s3Key, result);
-            console.log(11);
-        }
-    }
-    if (result) {
-        console.log(12);
-        res.status(200).json(result);
-        console.log(`Successfully served Wikipedia query: ${query} from ${source}`)
-    } else {
-        console.log(13);
-        res.status(500).send(`Could not retrieve query: ${query} from Wikipedia.`)
-    }
-});
+}
 
 function getFromRedis(redisClient, key) {
-    console.log(3);
     return redisClient
         .get(key)
         .then(result => {
@@ -126,7 +112,7 @@ function getFromS3(s3Client, bucket, key) {
         .promise()
         .then(result => JSON.parse(result.Body))
         .catch(err => {
-            console.error(`Could not read from S3: ${err.message}`);
+            console.error(`Could not read s3://${bucket}/${key} from S3: ${err.message}`);
             return undefined;
         });
 }
