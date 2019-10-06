@@ -19,6 +19,25 @@ createBucket(s3Client, bucketName);
 const app = express();
 app.use(responseTime());
 
+app.get('/api/store', async (req, res) => {
+    const query = (req.query.query).trim().toLowerCase();
+
+    const s3Key = `wikipedia-${query}`;
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=parse&format=json&section=0&page=${query}`;
+
+    const result = await getFromWikipedia(searchUrl);
+    // cache for future lookups
+    if (result) {
+        writeToS3(s3Client, bucketName, s3Key, result);
+    }
+    if (result) {
+        res.status(200).json(result);
+        console.log(`Successfully stored Wikipedia query: ${query} in S3`)
+    } else {
+        res.status(500).send(`Could not retrieve and store query: ${query} from Wikipedia into S3.`)
+    }
+});
+
 app.get('/api/search', async (req, res) => {
     const query = (req.query.query).trim();
 

@@ -20,5 +20,6 @@ main "$@"
 #     redis-cli keys 'wikipedia*'
 #     aws s3 ls --profile wjensen s3://wjensen-wikipedia-store/
 #     aws s3 rm --recursive --profile wjensen s3://wjensen-wikipedia-store/
-
+#     curl http://localhost:3000/api/store?query=qut
+#     curl http://localhost:3000/api/search?query=qut
 
