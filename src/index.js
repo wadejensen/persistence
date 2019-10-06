@@ -56,6 +56,10 @@ app.get('/api/search', async (req, res) => {
     if (!result) {
         source = "S3 cache";
         result = await getFromS3(s3Client, bucketName, s3Key);
+        // cache for future lookups
+        if (result) {
+            writeToRedis(redisClient, redisKey, result);
+        }
     }
     if (!result) {
         source = "Wikipedia";
