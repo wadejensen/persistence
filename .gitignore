@@ -1,0 +1,5 @@
+.idea
+dump.rdb
+node_modules
+*.iml
+
