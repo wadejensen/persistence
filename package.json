@@ -15,7 +15,7 @@
     "compression": "^1.7.4",
     "express": "^4.16.4",
     "node-cleanup": "^2.1.2",
-    "node-fetch": "^2.6.0",
+    "node-fetch": "^2.6.1",
     "redis": "^2.8.0",
     "response-time": "^2.3.2"
   },
