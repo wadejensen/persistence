@@ -16,7 +16,7 @@
     "express": "^4.16.4",
     "node-cleanup": "^2.1.2",
     "node-fetch": "^2.6.0",
-    "redis": "^2.8.0",
+    "redis": "^3.1.1",
     "response-time": "^2.3.2"
   },
   "nodemonConfig": {
