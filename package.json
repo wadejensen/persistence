@@ -11,7 +11,7 @@
   "devDependencies": {},
   "dependencies": {
     "async-redis": "^1.1.7",
-    "aws-sdk": "^2.543.0",
+    "aws-sdk": "^2.814.0",
     "compression": "^1.7.4",
     "express": "^4.16.4",
     "node-cleanup": "^2.1.2",
